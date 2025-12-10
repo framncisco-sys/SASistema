@@ -9,8 +9,61 @@ const datosAcciones = { "DEFAULT": { comprasRobot: 0, erroresDTE: 0, facturasPos
 const opcionesGasto = { "Gravada": ["Costo", "Gasto"], "Exenta": ["Costo", "Gasto"] };
 const opcionesSector = { "Costo": ["Industria", "Comercio"], "Gasto": ["Admin", "Ventas"] };
 
+// --- COMPONENTE DE LOGIN (SEGURIDAD) ---
+function LoginScreen({ onLogin }) {
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // 🔐 CREDENCIALES PROVISIONALES
+    if (user === "admin" && pass === "1234") {
+      onLogin(true);
+    } else {
+      setError("❌ Credenciales incorrectas");
+    }
+  };
+
+  return (
+    <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#2c3e50' }}>
+      <div style={{ background: 'white', padding: '40px', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', width: '350px', textAlign: 'center' }}>
+        <h1 style={{ color: '#2c3e50', marginBottom: '5px' }}>🔐 Acceso</h1>
+        <p style={{ color: '#7f8c8d', marginBottom: '30px' }}>Sistema Contable SA</p>
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '15px', textAlign: 'left' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#34495e' }}>Usuario</label>
+            <input 
+              type="text" 
+              value={user} 
+              onChange={(e) => setUser(e.target.value)} 
+              style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #bdc3c7', boxSizing: 'border-box' }}
+              placeholder="Ej: admin"
+            />
+          </div>
+          <div style={{ marginBottom: '25px', textAlign: 'left' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#34495e' }}>Contraseña</label>
+            <input 
+              type="password" 
+              value={pass} 
+              onChange={(e) => setPass(e.target.value)} 
+              style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #bdc3c7', boxSizing: 'border-box' }}
+              placeholder="••••"
+            />
+          </div>
+          {error && <div style={{ color: '#e74c3c', marginBottom: '15px', fontSize: '0.9em' }}>{error}</div>}
+          <button type="submit" style={{ width: '100%', padding: '12px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '5px', fontSize: '1.1em', cursor: 'pointer', fontWeight: 'bold' }}>Ingresar al Sistema</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function App() {
-  // --- ESTADOS ---
+  // --- ESTADO DE SEGURIDAD ---
+  const [estaLogueado, setEstaLogueado] = useState(false);
+
+  // --- ESTADOS DE LA APP ---
   const [listaClientes, setListaClientes] = useState([]);
   const [clienteActivo, setClienteActivo] = useState(""); 
   const [periodo, setPeriodo] = useState("2025-10");
@@ -44,7 +97,7 @@ function App() {
   const [montoTotal, setMontoTotal] = useState("");
   const [clasif1, setClasif1] = useState("Gravada");
   const [clasif2, setClasif2] = useState("Gasto");
-  const [clasif3, setClasif3] = useState(""); // <--- AQUÍ ESTÁ LA VARIABLE QUE FALTABA
+  const [clasif3, setClasif3] = useState(""); 
 
   // Formulario Ventas
   const [tipoVenta, setTipoVenta] = useState("CF");
@@ -76,20 +129,21 @@ function App() {
   const [retCodigo, setRetCodigo] = useState("");           
   const [retNumero, setRetNumero] = useState("");           
 
-  // VARIABLES DERIVADAS (SOLUCIÓN AL ERROR 'datos is not defined')
+  // VARIABLES DERIVADAS
   const clienteInfo = listaClientes.find(c => c.nrc === clienteActivo);
-  const datos = datosFiscales; // <--- AQUÍ DEFINIMOS 'datos' PARA TODO EL ARCHIVO
+  const datos = datosFiscales; 
   const totalCreditos = parseFloat(datos.creditoFiscal) + parseFloat(datos.percepcionesPagadas || 0) + parseFloat(datos.remanenteMesAnterior || 0) + parseFloat(datos.retencionCliente1) + parseFloat(datos.retencionTarjeta2);
   const impuestoPorPagar = parseFloat(datos.debitoFiscal) - totalCreditos;
   const esRemanente = impuestoPorPagar < 0;
-  const acciones = datosAcciones["DEFAULT"];
 
   // --- FUNCIONES DE CARGA ---
   const cargarClientes = () => { fetch('https://backend-production-8f98.up.railway.app/api/clientes/api/clientes/').then(r=>r.json()).then(setListaClientes).catch(console.error); };
-  useEffect(() => { cargarClientes(); }, []);
-  useEffect(() => { if (clienteActivo && periodo) fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/finanzas/resumen/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setDatosFiscales); }, [clienteActivo, periodo, vistaActual]);
-  useEffect(() => { if (vistaActual === "libroCompras" && clienteActivo) fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/compras/listar/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setListaCompras); }, [vistaActual, clienteActivo, periodo]); 
-  useEffect(() => { if ((vistaActual === "libroVentasCCF" || vistaActual === "libroVentasCF") && clienteActivo) { const tipo = vistaActual === "libroVentasCCF" ? "CCF" : "CF"; fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/ventas/listar/?nrc=${clienteActivo}&periodo=${periodo}&tipo=${tipo}`).then(r=>r.json()).then(setListaVentas); } }, [vistaActual, clienteActivo, periodo]);
+  
+  // Efectos solo se ejecutan si está logueado
+  useEffect(() => { if(estaLogueado) cargarClientes(); }, [estaLogueado]);
+  useEffect(() => { if (estaLogueado && clienteActivo && periodo) fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/finanzas/resumen/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setDatosFiscales); }, [estaLogueado, clienteActivo, periodo, vistaActual]);
+  useEffect(() => { if (estaLogueado && vistaActual === "libroCompras" && clienteActivo) fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/compras/listar/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setListaCompras); }, [estaLogueado, vistaActual, clienteActivo, periodo]); 
+  useEffect(() => { if (estaLogueado && (vistaActual === "libroVentasCCF" || vistaActual === "libroVentasCF") && clienteActivo) { const tipo = vistaActual === "libroVentasCCF" ? "CCF" : "CF"; fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/ventas/listar/?nrc=${clienteActivo}&periodo=${periodo}&tipo=${tipo}`).then(r=>r.json()).then(setListaVentas); } }, [estaLogueado, vistaActual, clienteActivo, periodo]);
 
   // --- LOGICA GENERAL ---
   const seleccionarCliente = (nrc) => { setClienteActivo(nrc); setMostrarModalCliente(false); setVistaActual("dashboard"); resetFormularios(); };
@@ -154,18 +208,26 @@ function App() {
   const cargarParaEditar = (compra) => { setIdEdicion(compra.id); setTipoDocumento(compra.tipo_documento); setFechaFactura(compra.fecha_emision); setNumeroDocumento(compra.codigo_generacion); setNrcProveedor(compra.nrc_proveedor); setNombreProveedor(compra.nombre_proveedor); setMontoGravado(compra.monto_gravado); setMontoIva(compra.monto_iva); setMontoTotal(compra.monto_total); setClasif1(compra.clasificacion_1); setClasif2(compra.clasificacion_2); setClasif3(compra.clasificacion_3); setVistaActual("nuevaCompra"); };
   const cargarVentaParaEditar = (venta) => { setIdEdicion(venta.id); setTipoVenta(venta.tipo_venta); setFechaVenta(venta.fecha_emision); setClaseDocumento(venta.clase_documento); setNumDocumento(venta.numero_documento); setDelNum(venta.numero_control_desde); setAlNum(venta.numero_control_hasta); setSerie(venta.serie_documento); setResolucion(venta.numero_resolucion); setSello(venta.sello_recepcion); setNumControlDTE(venta.numero_control_dte); setNumFormUnico(venta.numero_formulario_unico); setClienteReceptor(venta.nombre_receptor); setNrcReceptor(venta.nrc_receptor); setVentaGravada(venta.venta_gravada); setDebitoFiscal(venta.debito_fiscal); setVentaTotal((parseFloat(venta.venta_gravada) + parseFloat(venta.debito_fiscal)).toFixed(2)); setOpRenta(venta.clasificacion_venta); setIngresoTipo(venta.tipo_ingreso); setVistaActual("nuevaVenta"); };
   const borrarSeleccionados = (tipo) => { if (seleccionados.length === 0) return; if (window.confirm(`⚠️ ¿Eliminar ${seleccionados.length} items?`)) { const promesas = seleccionados.map(id => fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/${tipo}/borrar/${id}/`, { method: 'DELETE' })); Promise.all(promesas).then(() => { alert("🗑️ Eliminados."); setSeleccionados([]); if (tipo === 'compras') fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/compras/listar/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setListaCompras); else { const tipoV = vistaActual === "libroVentasCCF" ? "CCF" : "CF"; fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/ventas/listar/?nrc=${clienteActivo}&periodo=${periodo}&tipo=${tipoV}`).then(r=>r.json()).then(setListaVentas); } fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/finanzas/resumen/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setDatosFiscales); }); } };
-  const borrarVenta = (id) => { if (window.confirm("⚠️ ¿Eliminar esta venta?")) { fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/ventas/borrar/${id}/`, { method: 'DELETE' }).then(res => { if (res.ok) { fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/ventas/listar/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setListaVentas); fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/finanzas/resumen/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setDatosFiscales); } }); } };
-  const borrarCompra = (id) => { if (window.confirm("⚠️ ¿Eliminar?")) { fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/compras/borrar/${id}/`, { method: 'DELETE' }).then(res => { if (res.ok) { fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/compras/listar/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setListaCompras); fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/finanzas/resumen/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setDatosFiscales); } }); } };
   const handleEditarSeleccion = (tipoLibro) => { const id = seleccionados[0]; if (tipoLibro === 'compras') { const item = listaCompras.find(i => i.id === id); if(item) cargarParaEditar(item); } else { const item = listaVentas.find(i => i.id === id); if(item) cargarVentaParaEditar(item); } };
 
+  // --- VIGILANTE: SI NO ESTÁ LOGUEADO, MOSTRAR LOGIN ---
+  if (!estaLogueado) {
+    return <LoginScreen onLogin={setEstaLogueado} />;
+  }
+
+  // --- SI ESTÁ LOGUEADO, MOSTRAR LA APP COMPLETA ---
   return (
     <div style={{ padding: '20px', fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#f4f7f6', minHeight: '100vh' }}>
       <header style={{ background: 'white', padding: '20px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', marginBottom: '20px' }}>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-           <h1 style={{ color: '#2c3e50', margin: 0, cursor: 'pointer' }} onClick={() => setVistaActual("dashboard")}>📊 Sistema Contable SA</h1>
+           <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+               <h1 style={{ color: '#2c3e50', margin: 0, cursor: 'pointer' }} onClick={() => setVistaActual("dashboard")}>📊 Sistema Contable SA</h1>
+               <span style={{fontSize: '0.8em', color: '#95a5a6'}}>| Usuario: Admin</span>
+           </div>
            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {clienteActivo && <span style={{color: '#27ae60', fontWeight: 'bold', fontSize: '1.2em'}}>{clienteInfo?.nombre}</span>}
               <button onClick={() => setMostrarModalCliente(true)} style={{padding: '10px 20px', background: '#2c3e50', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold'}}>{clienteActivo ? "🔄 Cambiar" : "👤 Seleccionar"}</button>
+              <button onClick={() => { if(window.confirm("¿Cerrar Sesión?")) setEstaLogueado(false); }} style={{padding: '10px', background: '#c0392b', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', marginLeft: '10px'}}>🔒 Salir</button>
            </div>
         </div>
       </header>
@@ -265,31 +327,31 @@ function App() {
             {/* --- VISTA: NUEVA COMPRA --- */}
             {vistaActual === "nuevaCompra" && (
               <div style={{ background: 'white', padding: '30px', borderRadius: '10px', maxWidth: '800px', margin: '0 auto', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
-                 <div style={{display: 'flex', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px'}}>
-                  <button onClick={() => setVistaActual("dashboard")} style={{marginRight: '15px', cursor: 'pointer', border: 'none', background: 'transparent', fontSize: '1.5em'}}>⬅️</button>
-                  <h2 style={{margin: 0, color: idEdicion ? '#f39c12' : '#3498db'}}>{idEdicion ? `✏️ Editando Compra` : '📝 Registrar Nueva Compra'}</h2>
-                </div>
-                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
-                    <div><label style={{display: 'block'}}>Tipo</label><select value={tipoDocumento} onChange={(e) => setTipoDocumento(e.target.value)} style={{width: '100%', padding: '10px'}}><option value="03">03 - CCF</option><option value="05">05 - NC</option><option value="14">14 - FSE</option>{clienteInfo?.es_importador && <option value="12">12 - Importación</option>}</select></div>
-                    <div><label style={{display: 'block'}}>Fecha</label><input type="date" value={fechaFactura} onChange={(e) => validarFecha(e.target.value)} style={{width: '100%', padding: '8px', border: alertaFecha ? '2px solid red' : '1px solid #ccc'}} />{alertaFecha && <small style={{color:'red'}}>{alertaFecha}</small>}</div>
-                </div>
-                <div style={{marginBottom: '20px'}}><label style={{display: 'block'}}>Nº Doc</label><input value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value)} style={{width: '100%', padding: '10px', border: '1px solid #ccc'}} /></div>
-                <div style={{marginBottom: '20px'}}><input placeholder="NRC Prov" value={nrcProveedor} onChange={handleNrcChange} style={{padding:'10px', marginRight:'10px'}} /><input placeholder="Nombre" value={nombreProveedor} onChange={(e)=>setNombreProveedor(e.target.value)} style={{padding:'10px', width:'300px'}} /></div>
-                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '20px'}}>
-                    <input type="number" placeholder="Gravado" value={montoGravado} onChange={handleMontoChange} style={{padding:'10px'}} />
-                    <input type="number" placeholder="IVA" value={montoIva} readOnly style={{padding:'10px', background:'#eee'}} />
-                    <input type="number" placeholder="Total" value={montoTotal} readOnly style={{padding:'10px', background:'#eee'}} />
-                </div>
-                <div style={{display: 'flex', gap: '10px'}}>
-                     <select value={clasif1} onChange={(e) => {setClasif1(e.target.value); setClasif2("");}} style={{flex:1, padding:'10px'}}>{Object.keys(opcionesGasto).map(op=><option key={op}>{op}</option>)}</select>
-                     <select value={clasif2} onChange={(e) => {setClasif2(e.target.value); setClasif3("");}} disabled={!clasif1} style={{flex:1, padding:'10px'}}><option value="">--</option>{clasif1 && opcionesGasto[clasif1]?.map(op=><option key={op}>{op}</option>)}</select>
-                     <select value={clasif3} onChange={(e) => setClasif3(e.target.value)} disabled={!clasif2} style={{flex:1, padding:'10px'}}><option value="">--</option>{clasif2 && opcionesSector[clasif2]?.map(op=><option key={op}>{op}</option>)}</select>
-                </div>
-                <div style={{marginTop: '30px', display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
-                    <button onClick={() => guardarCompraEnBackend(false)} style={{padding: '15px 20px', background: '#34495e', color: 'white', border: 'none', borderRadius: '5px', fontSize: '1em', cursor: 'pointer', fontWeight: 'bold'}}>{idEdicion ? "💾 Guardar Cambios" : "➕ Guardar y Agregar Otra"}</button>
-                    <button onClick={() => guardarCompraEnBackend(true)} style={{padding: '15px 30px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '5px', fontSize: '1em', cursor: 'pointer', fontWeight: 'bold'}}>{idEdicion ? "💾 Guardar y Salir" : "💾 Guardar y Terminar"}</button>
-                </div>
-              </div>
+                  <div style={{display: 'flex', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px'}}>
+                   <button onClick={() => setVistaActual("dashboard")} style={{marginRight: '15px', cursor: 'pointer', border: 'none', background: 'transparent', fontSize: '1.5em'}}>⬅️</button>
+                   <h2 style={{margin: 0, color: idEdicion ? '#f39c12' : '#3498db'}}>{idEdicion ? `✏️ Editando Compra` : '📝 Registrar Nueva Compra'}</h2>
+                 </div>
+                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
+                     <div><label style={{display: 'block'}}>Tipo</label><select value={tipoDocumento} onChange={(e) => setTipoDocumento(e.target.value)} style={{width: '100%', padding: '10px'}}><option value="03">03 - CCF</option><option value="05">05 - NC</option><option value="14">14 - FSE</option>{clienteInfo?.es_importador && <option value="12">12 - Importación</option>}</select></div>
+                     <div><label style={{display: 'block'}}>Fecha</label><input type="date" value={fechaFactura} onChange={(e) => validarFecha(e.target.value)} style={{width: '100%', padding: '8px', border: alertaFecha ? '2px solid red' : '1px solid #ccc'}} />{alertaFecha && <small style={{color:'red'}}>{alertaFecha}</small>}</div>
+                 </div>
+                 <div style={{marginBottom: '20px'}}><label style={{display: 'block'}}>Nº Doc</label><input value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value)} style={{width: '100%', padding: '10px', border: '1px solid #ccc'}} /></div>
+                 <div style={{marginBottom: '20px'}}><input placeholder="NRC Prov" value={nrcProveedor} onChange={handleNrcChange} style={{padding:'10px', marginRight:'10px'}} /><input placeholder="Nombre" value={nombreProveedor} onChange={(e)=>setNombreProveedor(e.target.value)} style={{padding:'10px', width:'300px'}} /></div>
+                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '20px'}}>
+                     <input type="number" placeholder="Gravado" value={montoGravado} onChange={handleMontoChange} style={{padding:'10px'}} />
+                     <input type="number" placeholder="IVA" value={montoIva} readOnly style={{padding:'10px', background:'#eee'}} />
+                     <input type="number" placeholder="Total" value={montoTotal} readOnly style={{padding:'10px', background:'#eee'}} />
+                 </div>
+                 <div style={{display: 'flex', gap: '10px'}}>
+                      <select value={clasif1} onChange={(e) => {setClasif1(e.target.value); setClasif2("");}} style={{flex:1, padding:'10px'}}>{Object.keys(opcionesGasto).map(op=><option key={op}>{op}</option>)}</select>
+                      <select value={clasif2} onChange={(e) => {setClasif2(e.target.value); setClasif3("");}} disabled={!clasif1} style={{flex:1, padding:'10px'}}><option value="">--</option>{clasif1 && opcionesGasto[clasif1]?.map(op=><option key={op}>{op}</option>)}</select>
+                      <select value={clasif3} onChange={(e) => setClasif3(e.target.value)} disabled={!clasif2} style={{flex:1, padding:'10px'}}><option value="">--</option>{clasif2 && opcionesSector[clasif2]?.map(op=><option key={op}>{op}</option>)}</select>
+                 </div>
+                 <div style={{marginTop: '30px', display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
+                     <button onClick={() => guardarCompraEnBackend(false)} style={{padding: '15px 20px', background: '#34495e', color: 'white', border: 'none', borderRadius: '5px', fontSize: '1em', cursor: 'pointer', fontWeight: 'bold'}}>{idEdicion ? "💾 Guardar Cambios" : "➕ Guardar y Agregar Otra"}</button>
+                     <button onClick={() => guardarCompraEnBackend(true)} style={{padding: '15px 30px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '5px', fontSize: '1em', cursor: 'pointer', fontWeight: 'bold'}}>{idEdicion ? "💾 Guardar y Salir" : "💾 Guardar y Terminar"}</button>
+                 </div>
+               </div>
             )}
 
             {/* --- VISTA: LIBRO DE COMPRAS --- */}
@@ -324,7 +386,7 @@ function App() {
 
             {(vistaActual === "libroVentasCCF" || vistaActual === "libroVentasCF") && (
                 <div style={{ background: 'white', padding: '20px', borderRadius: '10px' }}>
-                     <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px'}}>
+                      <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px'}}>
                         <div style={{display:'flex', alignItems:'center'}}>
                             <button onClick={() => setVistaActual("dashboard")}>⬅️</button>
                             <h2 style={{margin:0, marginLeft:'10px'}}>{vistaActual === "libroVentasCCF" ? "🛒 Ventas CCF" : "🧾 Ventas Consumidor Final"}</h2>
