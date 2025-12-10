@@ -162,11 +162,35 @@ function App() {
       setSeleccionados([]); 
   };
 
-  const guardarNuevoCliente = () => {
-      if(!nuevoNombre || !nuevoNrc) { alert("Datos incompletos"); return; }
-      fetch('https://backend-production-8f98.up.railway.app/api/clientes/crear/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre: nuevoNombre, nrc: nuevoNrc, nit: nuevoNit, es_importador: nuevoEsImportador }) })
-      .then(async res => { if(res.ok) { alert("✅ Cliente Creado"); cargarClientes(); setModoCrearCliente(false); setNuevoNombre(""); setNuevoNrc(""); setNuevoNit(""); setNuevoEsImportador(false); } else alert("❌ Error: NRC duplicado."); });
-  };
+ const guardarNuevoCliente = () => {
+    if(!nuevoNombre || !nuevoNrc) { alert("Datos incompletos"); return; }
+    
+    // CORRECCIÓN AQUÍ ABAJO:
+    fetch('https://backend-production-8f98.up.railway.app/api/clientes/crear/', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ 
+            nombre: nuevoNombre, 
+            nrc: nuevoNrc, 
+            nit: nuevoNit, 
+            es_importador: nuevoEsImportador 
+        }) 
+    })
+    .then(async res => { 
+        if(res.ok) { 
+            alert("✅ Cliente Creado"); 
+            cargarClientes(); 
+            setModoCrearCliente(false); 
+            setNuevoNombre(""); 
+            setNuevoNrc(""); 
+            setNuevoNit(""); 
+            setNuevoEsImportador(false); 
+        } else {
+            // Un pequeño consejo extra: Muestra el error real del backend si puedes
+            alert("❌ Error: Posible NRC duplicado o error de conexión."); 
+        }
+    });
+};
 
   // --- HANDLERS DE INPUTS ---
   const handleNrcChange = (e) => { const nrc = e.target.value; setNrcProveedor(nrc); if (baseDatosProveedores[nrc]) setNombreProveedor(baseDatosProveedores[nrc]); };
