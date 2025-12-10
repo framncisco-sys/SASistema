@@ -137,13 +137,13 @@ function App() {
   const esRemanente = impuestoPorPagar < 0;
 
   // --- FUNCIONES DE CARGA ---
-  const cargarClientes = () => { fetch('https://backend-production-8f98.up.railway.app/api/clientes/api/clientes/').then(r=>r.json()).then(setListaClientes).catch(console.error); };
+  const cargarClientes = () => { fetch('https://backend-production-8f98.up.railway.app/api/clientes/').then(r=>r.json()).then(setListaClientes).catch(console.error); };
   
   // Efectos solo se ejecutan si está logueado
   useEffect(() => { if(estaLogueado) cargarClientes(); }, [estaLogueado]);
-  useEffect(() => { if (estaLogueado && clienteActivo && periodo) fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/finanzas/resumen/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setDatosFiscales); }, [estaLogueado, clienteActivo, periodo, vistaActual]);
-  useEffect(() => { if (estaLogueado && vistaActual === "libroCompras" && clienteActivo) fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/compras/listar/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setListaCompras); }, [estaLogueado, vistaActual, clienteActivo, periodo]); 
-  useEffect(() => { if (estaLogueado && (vistaActual === "libroVentasCCF" || vistaActual === "libroVentasCF") && clienteActivo) { const tipo = vistaActual === "libroVentasCCF" ? "CCF" : "CF"; fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/ventas/listar/?nrc=${clienteActivo}&periodo=${periodo}&tipo=${tipo}`).then(r=>r.json()).then(setListaVentas); } }, [estaLogueado, vistaActual, clienteActivo, periodo]);
+  useEffect(() => { if (estaLogueado && clienteActivo && periodo) fetch(`https://backend-production-8f98.up.railway.app/api/finanzas/resumen/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setDatosFiscales); }, [estaLogueado, clienteActivo, periodo, vistaActual]);
+  useEffect(() => { if (estaLogueado && vistaActual === "libroCompras" && clienteActivo) fetch(`https://backend-production-8f98.up.railway.app/api/compras/listar/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setListaCompras); }, [estaLogueado, vistaActual, clienteActivo, periodo]); 
+  useEffect(() => { if (estaLogueado && (vistaActual === "libroVentasCCF" || vistaActual === "libroVentasCF") && clienteActivo) { const tipo = vistaActual === "libroVentasCCF" ? "CCF" : "CF"; fetch(`https://backend-production-8f98.up.railway.app/api/ventas/listar/?nrc=${clienteActivo}&periodo=${periodo}&tipo=${tipo}`).then(r=>r.json()).then(setListaVentas); } }, [estaLogueado, vistaActual, clienteActivo, periodo]);
 
   // --- LOGICA GENERAL ---
   const seleccionarCliente = (nrc) => { setClienteActivo(nrc); setMostrarModalCliente(false); setVistaActual("dashboard"); resetFormularios(); };
@@ -164,7 +164,7 @@ function App() {
 
   const guardarNuevoCliente = () => {
       if(!nuevoNombre || !nuevoNrc) { alert("Datos incompletos"); return; }
-      fetch('https://backend-production-8f98.up.railway.app/api/clientes/api/clientes/crear/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre: nuevoNombre, nrc: nuevoNrc, nit: nuevoNit, es_importador: nuevoEsImportador }) })
+      fetch('https://backend-production-8f98.up.railway.app/api/clientes/crear/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre: nuevoNombre, nrc: nuevoNrc, nit: nuevoNit, es_importador: nuevoEsImportador }) })
       .then(async res => { if(res.ok) { alert("✅ Cliente Creado"); cargarClientes(); setModoCrearCliente(false); setNuevoNombre(""); setNuevoNrc(""); setNuevoNit(""); setNuevoEsImportador(false); } else alert("❌ Error: NRC duplicado."); });
   };
 
@@ -188,26 +188,26 @@ function App() {
   const guardarCompraEnBackend = (irALibro) => {
     if (!fechaFactura || !nrcProveedor || !montoTotal) { alert("⚠️ Faltan datos."); return; }
     const paquete = { cliente: clienteActivo, fecha_emision: fechaFactura, tipo_documento: tipoDocumento, codigo_generacion: numeroDocumento, nrc_proveedor: nrcProveedor, nombre_proveedor: nombreProveedor, monto_gravado: montoGravado || 0, monto_iva: montoIva || 0, monto_total: montoTotal || 0, clasificacion_1: clasif1, clasificacion_2: clasif2, clasificacion_3: clasif3, periodo_aplicado: periodo, estado: "Registrado" };
-    let url = 'https://backend-production-8f98.up.railway.app/api/clientes/api/compras/crear/'; let metodo = 'POST';
-    if (idEdicion) { url = `https://backend-production-8f98.up.railway.app/api/clientes/api/compras/actualizar/${idEdicion}/`; metodo = 'PUT'; }
+    let url = 'https://backend-production-8f98.up.railway.app/api/compras/crear/'; let metodo = 'POST';
+    if (idEdicion) { url = `https://backend-production-8f98.up.railway.app/api/compras/actualizar/${idEdicion}/`; metodo = 'PUT'; }
     fetch(url, { method: metodo, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(paquete) }).then(async res => { const data = await res.json(); if (res.ok) { alert("✅ Guardado"); if (irALibro) setVistaActual("libroCompras"); resetFormularios(); } else alert(data.error || "Error"); }).catch(console.error);
   };
 
   const guardarVentaEnBackend = () => {
       if (!fechaVenta || (!ventaGravada && !ventaTotal)) { alert("⚠️ Faltan datos básicos."); return; }
       const paqueteVenta = { cliente: clienteActivo, fecha_emision: fechaVenta, periodo_aplicado: periodo, tipo_venta: tipoVenta, clase_documento: claseDocumento, numero_documento: numDocumento || delNum, numero_control_desde: tipoVenta === 'CF' ? delNum : null, numero_control_hasta: tipoVenta === 'CF' ? alNum : null, serie_documento: serie, numero_resolucion: resolucion, sello_recepcion: sello, numero_control_dte: numControlDTE, numero_formulario_unico: numFormUnico, nombre_receptor: tipoVenta === 'CCF' ? clienteReceptor : null, nrc_receptor: tipoVenta === 'CCF' ? nrcReceptor : null, venta_gravada: ventaGravada || 0, debito_fiscal: debitoFiscal || 0, clasificacion_venta: opRenta, tipo_ingreso: ingresoTipo };
-      fetch('https://backend-production-8f98.up.railway.app/api/clientes/api/ventas/crear/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(paqueteVenta) }).then(async res => { if (res.ok) { alert("✅ ¡Venta Registrada!"); resetFormularios(); setVistaActual(tipoVenta === 'CCF' ? "libroVentasCCF" : "libroVentasCF"); } else alert("❌ Error al guardar venta."); }).catch(console.error);
+      fetch('https://backend-production-8f98.up.railway.app/api/ventas/crear/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(paqueteVenta) }).then(async res => { if (res.ok) { alert("✅ ¡Venta Registrada!"); resetFormularios(); setVistaActual(tipoVenta === 'CCF' ? "libroVentasCCF" : "libroVentasCF"); } else alert("❌ Error al guardar venta."); }).catch(console.error);
   };
 
   const guardarRetencionEnBackend = () => {
       if (!retFecha || !retMonto || !retNit) { alert("⚠️ Faltan datos."); return; }
       const paqueteRet = { cliente: clienteActivo, periodo_aplicado: periodo, fecha_emision: retFecha, tipo_retencion: retTipo, monto_retenido: retMonto, monto_sujeto: retMontoSujeto, nit_emisor: retNit, nombre_emisor: retEmisor, codigo_generacion: retCodigo, numero_documento: retNumero };
-      fetch('https://backend-production-8f98.up.railway.app/api/clientes/api/retenciones/crear/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(paqueteRet) }).then(async res => { if (res.ok) { alert("✅ Retención Agregada"); resetFormularios(); setVistaActual("dashboard"); } else alert("❌ Error al guardar retención."); });
+      fetch('https://backend-production-8f98.up.railway.app/api/retenciones/crear/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(paqueteRet) }).then(async res => { if (res.ok) { alert("✅ Retención Agregada"); resetFormularios(); setVistaActual("dashboard"); } else alert("❌ Error al guardar retención."); });
   };
 
   const cargarParaEditar = (compra) => { setIdEdicion(compra.id); setTipoDocumento(compra.tipo_documento); setFechaFactura(compra.fecha_emision); setNumeroDocumento(compra.codigo_generacion); setNrcProveedor(compra.nrc_proveedor); setNombreProveedor(compra.nombre_proveedor); setMontoGravado(compra.monto_gravado); setMontoIva(compra.monto_iva); setMontoTotal(compra.monto_total); setClasif1(compra.clasificacion_1); setClasif2(compra.clasificacion_2); setClasif3(compra.clasificacion_3); setVistaActual("nuevaCompra"); };
   const cargarVentaParaEditar = (venta) => { setIdEdicion(venta.id); setTipoVenta(venta.tipo_venta); setFechaVenta(venta.fecha_emision); setClaseDocumento(venta.clase_documento); setNumDocumento(venta.numero_documento); setDelNum(venta.numero_control_desde); setAlNum(venta.numero_control_hasta); setSerie(venta.serie_documento); setResolucion(venta.numero_resolucion); setSello(venta.sello_recepcion); setNumControlDTE(venta.numero_control_dte); setNumFormUnico(venta.numero_formulario_unico); setClienteReceptor(venta.nombre_receptor); setNrcReceptor(venta.nrc_receptor); setVentaGravada(venta.venta_gravada); setDebitoFiscal(venta.debito_fiscal); setVentaTotal((parseFloat(venta.venta_gravada) + parseFloat(venta.debito_fiscal)).toFixed(2)); setOpRenta(venta.clasificacion_venta); setIngresoTipo(venta.tipo_ingreso); setVistaActual("nuevaVenta"); };
-  const borrarSeleccionados = (tipo) => { if (seleccionados.length === 0) return; if (window.confirm(`⚠️ ¿Eliminar ${seleccionados.length} items?`)) { const promesas = seleccionados.map(id => fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/${tipo}/borrar/${id}/`, { method: 'DELETE' })); Promise.all(promesas).then(() => { alert("🗑️ Eliminados."); setSeleccionados([]); if (tipo === 'compras') fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/compras/listar/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setListaCompras); else { const tipoV = vistaActual === "libroVentasCCF" ? "CCF" : "CF"; fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/ventas/listar/?nrc=${clienteActivo}&periodo=${periodo}&tipo=${tipoV}`).then(r=>r.json()).then(setListaVentas); } fetch(`https://backend-production-8f98.up.railway.app/api/clientes/api/finanzas/resumen/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setDatosFiscales); }); } };
+  const borrarSeleccionados = (tipo) => { if (seleccionados.length === 0) return; if (window.confirm(`⚠️ ¿Eliminar ${seleccionados.length} items?`)) { const promesas = seleccionados.map(id => fetch(`https://backend-production-8f98.up.railway.app/api/${tipo}/borrar/${id}/`, { method: 'DELETE' })); Promise.all(promesas).then(() => { alert("🗑️ Eliminados."); setSeleccionados([]); if (tipo === 'compras') fetch(`https://backend-production-8f98.up.railway.app/api/compras/listar/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setListaCompras); else { const tipoV = vistaActual === "libroVentasCCF" ? "CCF" : "CF"; fetch(`https://backend-production-8f98.up.railway.app/api/ventas/listar/?nrc=${clienteActivo}&periodo=${periodo}&tipo=${tipoV}`).then(r=>r.json()).then(setListaVentas); } fetch(`https://backend-production-8f98.up.railway.app/api/finanzas/resumen/?nrc=${clienteActivo}&periodo=${periodo}`).then(r=>r.json()).then(setDatosFiscales); }); } };
   const handleEditarSeleccion = (tipoLibro) => { const id = seleccionados[0]; if (tipoLibro === 'compras') { const item = listaCompras.find(i => i.id === id); if(item) cargarParaEditar(item); } else { const item = listaVentas.find(i => i.id === id); if(item) cargarVentaParaEditar(item); } };
 
   // --- VIGILANTE: SI NO ESTÁ LOGUEADO, MOSTRAR LOGIN ---
@@ -310,12 +310,12 @@ function App() {
                     <div style={{ background: '#fcfcfc', padding: '15px', borderRadius: '10px', marginTop:'20px', border:'1px solid #eee' }}>
                         <h4 style={{marginTop:0, color:'#34495e'}}>📥 Centro de Reportes (CSV MH)</h4>
                         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
-                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/clientes/api/reportes/csv-compras/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Compras</button>
-                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/clientes/api/reportes/csv-ventas-ccf/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Ventas CCF</button>
-                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/clientes/api/reportes/csv-ventas-cf/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Ventas CF</button>
-                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/clientes/api/reportes/csv-163/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Percepciones (163)</button>
-                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/clientes/api/reportes/csv-162/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Retención 1% (162)</button>
-                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/clientes/api/reportes/csv-161/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Retención TC (161)</button>
+                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/reportes/csv-compras/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Compras</button>
+                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/reportes/csv-ventas-ccf/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Ventas CCF</button>
+                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/reportes/csv-ventas-cf/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Ventas CF</button>
+                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/reportes/csv-163/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Percepciones (163)</button>
+                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/reportes/csv-162/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Retención 1% (162)</button>
+                             <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/reportes/csv-161/?nrc=${clienteActivo}&periodo=${periodo}`} style={{padding:'8px', background:'#eee', border:'none', cursor:'pointer'}}>Retención TC (161)</button>
                         </div>
                     </div>
                 </div>
@@ -367,8 +367,8 @@ function App() {
                         )}
                     </div>
                     <div style={{display:'flex', gap:'10px', marginBottom:'20px'}}>
-                         <button onClick={() => { window.location.href = `https://backend-production-8f98.up.railway.app/api/clientes/api/reportes/csv-compras/?nrc=${clienteActivo}&periodo=${periodo}`; }} style={{ padding: '10px', background: '#7f8c8d', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>📄 Descargar CSV Compras</button>
-                         <button onClick={() => { window.location.href = `https://backend-production-8f98.up.railway.app/api/clientes/api/reportes/pdf-compras/?nrc=${clienteActivo}&periodo=${periodo}`; }} style={{ padding: '10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🖨️ Imprimir PDF</button>
+                         <button onClick={() => { window.location.href = `https://backend-production-8f98.up.railway.app/api/reportes/csv-compras/?nrc=${clienteActivo}&periodo=${periodo}`; }} style={{ padding: '10px', background: '#7f8c8d', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>📄 Descargar CSV Compras</button>
+                         <button onClick={() => { window.location.href = `https://backend-production-8f98.up.railway.app/api/reportes/pdf-compras/?nrc=${clienteActivo}&periodo=${periodo}`; }} style={{ padding: '10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🖨️ Imprimir PDF</button>
                     </div>
                     <table style={{width:'100%', borderCollapse:'collapse'}}>
                         <thead><tr style={{background:'#34495e', color:'white'}}><th style={{padding:'10px'}}>Select</th><th>Fecha</th><th>Nº Doc</th><th>Proveedor</th><th>Total</th></tr></thead>
@@ -399,9 +399,9 @@ function App() {
                         )}
                     </div>
                     <div style={{display:'flex', gap:'10px', marginBottom:'20px'}}>
-                         <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/clientes/api/reportes/csv-ventas-${vistaActual === "libroVentasCCF" ? 'ccf' : 'cf'}/?nrc=${clienteActivo}&periodo=${periodo}`} style={{ padding: '10px', background: '#9b59b6', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>📄 Descargar CSV MH</button>
-                         {vistaActual === "libroVentasCCF" && <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/clientes/api/reportes/pdf-ventas-ccf/?nrc=${clienteActivo}&periodo=${periodo}`} style={{ padding: '10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🖨️ PDF CCF</button>}
-                         {vistaActual === "libroVentasCF" && <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/clientes/api/reportes/pdf-ventas-cf/?nrc=${clienteActivo}&periodo=${periodo}`} style={{ padding: '10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🖨️ PDF CF</button>}
+                         <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/reportes/csv-ventas-${vistaActual === "libroVentasCCF" ? 'ccf' : 'cf'}/?nrc=${clienteActivo}&periodo=${periodo}`} style={{ padding: '10px', background: '#9b59b6', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>📄 Descargar CSV MH</button>
+                         {vistaActual === "libroVentasCCF" && <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/reportes/pdf-ventas-ccf/?nrc=${clienteActivo}&periodo=${periodo}`} style={{ padding: '10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🖨️ PDF CCF</button>}
+                         {vistaActual === "libroVentasCF" && <button onClick={() => window.location.href = `https://backend-production-8f98.up.railway.app/api/reportes/pdf-ventas-cf/?nrc=${clienteActivo}&periodo=${periodo}`} style={{ padding: '10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🖨️ PDF CF</button>}
                     </div>
                     <table style={{width:'100%', borderCollapse:'collapse'}}>
                         <thead><tr style={{background:'#8e44ad', color:'white'}}><th style={{padding:'10px'}}>Select</th><th>Fecha</th><th>Documento</th><th>Total</th><th>Débito</th></tr></thead>
@@ -436,7 +436,7 @@ function App() {
                                 const formData = new FormData();
                                 formData.append('nrc_activo', clienteActivo);
                                 Array.from(e.target.files).forEach(file => formData.append('archivos', file));
-                                fetch('https://backend-production-8f98.up.railway.app/api/clientes/api/sistema/procesar-lote/', { method: 'POST', body: formData }).then(r => r.json()).then(data => setCargaAnalisis(data)).catch(err => alert("Error analizando"));
+                                fetch('https://backend-production-8f98.up.railway.app/api/sistema/procesar-lote/', { method: 'POST', body: formData }).then(r => r.json()).then(data => setCargaAnalisis(data)).catch(err => alert("Error analizando"));
                                 e.target.value = null; 
                             }}
                             style={{opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer'}} 
@@ -483,7 +483,7 @@ function App() {
                          )}
                          <div style={{display:'flex', gap:'10px', justifyContent:'flex-end'}}>
                              <button onClick={() => setCargaAnalisis({compras:[], ventas:[], ignorados:[], retenciones:[], resumen:{total_iva_compras:0, total_iva_ventas:0}})} style={{padding:'15px', border:'none', background:'#95a5a6', color:'white', borderRadius:'5px', cursor:'pointer'}}>Limpiar</button>
-                             <button onClick={() => { if(window.confirm("¿Guardar todo?")) { fetch('https://backend-production-8f98.up.railway.app/api/clientes/api/sistema/guardar-lote/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nrc_activo: clienteActivo, compras: cargaAnalisis.compras, ventas: cargaAnalisis.ventas, retenciones: cargaAnalisis.retenciones }) }).then(r => r.json()).then(res => { alert(`✅ Guardados: ${res.resumen.guardados} (Duplicados: ${res.resumen.duplicados})`); setCargaAnalisis({compras:[], ventas:[], ignorados:[], retenciones:[], resumen:{total_iva_compras:0, total_iva_ventas:0}}); setVistaActual("dashboard"); }); } }} style={{padding:'15px 30px', border:'none', background:'#27ae60', color:'white', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'1.1em'}}>💾 GUARDAR TODO</button>
+                             <button onClick={() => { if(window.confirm("¿Guardar todo?")) { fetch('https://backend-production-8f98.up.railway.app/api/sistema/guardar-lote/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nrc_activo: clienteActivo, compras: cargaAnalisis.compras, ventas: cargaAnalisis.ventas, retenciones: cargaAnalisis.retenciones }) }).then(r => r.json()).then(res => { alert(`✅ Guardados: ${res.resumen.guardados} (Duplicados: ${res.resumen.duplicados})`); setCargaAnalisis({compras:[], ventas:[], ignorados:[], retenciones:[], resumen:{total_iva_compras:0, total_iva_ventas:0}}); setVistaActual("dashboard"); }); } }} style={{padding:'15px 30px', border:'none', background:'#27ae60', color:'white', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'1.1em'}}>💾 GUARDAR TODO</button>
                          </div>
                      </div>
                  )}
