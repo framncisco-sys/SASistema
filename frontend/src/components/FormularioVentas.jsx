@@ -2,38 +2,38 @@ import React, { useState, useEffect } from 'react';
 
 const FormularioVentas = ({ clienteInfo, volverAlInicio }) => {
   // --- ESTADOS ---
-  const [tipoDocumento, setTipoDocumento] = useState("03");
+  const [tipoDocumento, setTipoDocumento] = useState("CCF"); // Valor por defecto corregido
   const [fechaFactura, setFechaFactura] = useState("");
   const [numeroDocumento, setNumeroDocumento] = useState("");
-  
-  
-  // NUEVO: Estado para el Periodo (Mes de trabajo)
-  const [periodoContable, setPeriodoContable] = useState(""); 
-  const [listaPeriodos, setListaPeriodos] = useState([]);
-
-  // NUEVO: Al cargar el formulario, calculamos: Mes Actual y Mes Siguiente
-  useEffect(() => {
-    const hoy = new Date();
-    
-    // Mes Actual
-    const mesActual = hoy.toISOString().slice(0, 7); // Ejemplo: "2025-12"
-    
-    // Mes Siguiente (Manejo automático de cambio de año)
-    const proximoMesDate = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
-    const mesSiguiente = proximoMesDate.toISOString().slice(0, 7); // Ejemplo: "2026-01"
-
-    setListaPeriodos([mesActual, mesSiguiente]);
-    setPeriodoContable(mesActual); // Por defecto selecciona el actual
-  }, []);
   
   // Datos del Cliente
   const [nrcCliente, setNrcCliente] = useState("");
   const [nombreCliente, setNombreCliente] = useState("");
   
+  // Periodo Contable
+  const [periodoContable, setPeriodoContable] = useState(""); 
+  const [listaPeriodos, setListaPeriodos] = useState([]);
+
   // Montos
   const [montoGravado, setMontoGravado] = useState("");
   const [montoIva, setMontoIva] = useState("");
   const [montoTotal, setMontoTotal] = useState("");
+
+  // --- USE EFFECT: Cargar Fecha y Periodo Automático ---
+  useEffect(() => {
+    const hoy = new Date();
+    
+    // 1. Calcular Mes Actual y Siguiente
+    const mesActual = hoy.toISOString().slice(0, 7); 
+    const proximoMesDate = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
+    const mesSiguiente = proximoMesDate.toISOString().slice(0, 7);
+
+    setListaPeriodos([mesActual, mesSiguiente]);
+    setPeriodoContable(mesActual);
+    
+    // 2. Poner la fecha de HOY en el input para evitar errores
+    setFechaFactura(hoy.toISOString().slice(0, 10)); 
+  }, []);
 
   // --- CALCULOS ---
   const handleMontoChange = (e) => {
@@ -41,9 +41,6 @@ const FormularioVentas = ({ clienteInfo, volverAlInicio }) => {
     setMontoGravado(gravado);
     
     // Calcular IVA (13%)
-    // Nota: Si es Factura de Consumidor Final (01), el cálculo podría variar 
-    // dependiendo de si ingresas el precio con IVA incluido o no. 
-    // Por ahora lo dejaremos estándar (Base + IVA).
     const iva = parseFloat((gravado * 0.13).toFixed(2));
     setMontoIva(iva);
     
@@ -54,6 +51,7 @@ const FormularioVentas = ({ clienteInfo, volverAlInicio }) => {
   const buscarCliente = async () => {
     if(nrcCliente.length < 5) return;
     try {
+        // Ajusta la URL si tu backend tiene ruta de búsqueda, si no, ignora esto.
         const res = await fetch(`https://backend-production-8f98.up.railway.app/api/clientes/buscar/?nrc=${nrcCliente}`);
         if(res.ok) {
             const data = await res.json();
@@ -64,28 +62,28 @@ const FormularioVentas = ({ clienteInfo, volverAlInicio }) => {
     }
   };
 
-  // --- GUARDAR VENTA ---
+  // --- GUARDAR VENTA (VERSIÓN CORREGIDA) ---
   const guardarVenta = async (terminar) => {
+    // 1. Validar
     if (!montoGravado || !nrcCliente || !fechaFactura) {
-        alert("Faltan datos obligatorios (Monto, Cliente o Fecha)");
+        alert("⚠️ Faltan datos obligatorios (Monto, Cliente o Fecha)");
         return;
     }
 
-const nuevaVenta = {
-        // CORRECCIÓN: Usamos los nombres exactos que pide Django
-        fecha_emision: fechaFactura,      // Antes era 'fecha'
-        periodo_aplicado: periodoContable, // Antes no lo enviábamos
+    // 2. Preparar datos con los nombres EXACTOS que pide Django
+    const nuevaVenta = {
+        empresa: clienteInfo.nrc,         // La ferretería que vende
+        cliente: nrcCliente,              // El cliente que compra (NRC)
+        fecha_emision: fechaFactura,
+        periodo_aplicado: periodoContable,
         numero_documento: numeroDocumento,
-        cliente: nrcCliente,              // Antes era 'nrc_cliente'
-        // nombre_cliente: nombreCliente, // Django no suele pedir el nombre, solo el ID/NRC
         total_gravado: parseFloat(montoGravado),
         total_iva: parseFloat(montoIva),
         total: parseFloat(montoTotal),
-        tipo_venta: tipoDocumento         // Antes era 'tipo_documento'
+        tipo_venta: tipoDocumento         // "CCF" o "CF"
     };
-    // --- AGREGA ESTA LÍNEA AQUÍ: ---
-    console.log("📤 ENVIANDO Vents:", nuevaVenta); 
-    // -------------------------------
+
+    console.log("📤 ENVIANDO VENTA:", nuevaVenta);
 
     try {
         const respuesta = await fetch('https://backend-production-8f98.up.railway.app/api/ventas/crear/', {
@@ -104,7 +102,10 @@ const nuevaVenta = {
                 volverAlInicio();
             }
         } else {
-            alert("❌ Error al guardar venta");
+            // Muestra el error exacto del servidor si falla
+            const errorData = await respuesta.json();
+            console.error("❌ Error del servidor:", errorData);
+            alert(`Error al guardar: ${JSON.stringify(errorData)}`);
         }
     } catch (error) {
         console.error(error);
@@ -122,45 +123,32 @@ const nuevaVenta = {
             <span style={{marginLeft: 'auto', fontSize: '0.9em', color: '#7f8c8d'}}>{clienteInfo.nombre}</span>
         </div>
 
-        {/* FILA 1 */}
-        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
+        {/* FILA 1: TIPO, PERIODO Y FECHA */}
+        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px'}}>
             <div>
                 <label style={{display: 'block'}}>Tipo Documento</label>
-                {/* CAMBIO: Probamos con códigos de texto si los números fallan */}
+                {/* CORRECCIÓN: Values con texto (CCF, CF) en lugar de números */}
                 <select value={tipoDocumento} onChange={(e) => setTipoDocumento(e.target.value)} style={{width: '100%', padding: '10px'}}>
                     <option value="CCF">CCF - Crédito Fiscal</option>
                     <option value="CF">CF - Factura</option>
                     <option value="EXP">EXP - Exportación</option>
                 </select>
-                {/* Si "CCF" también falla, prueba enviando el número entero: value={3} (sin comillas) */}
             </div>
+            
             <div>
-                <label style={{display: 'block'}}>Periodo de Trabajo</label>
-                {/* SELECTOR AUTOMATICO: Muestra Hoy y el Próximo Mes */}
+                <label style={{display: 'block'}}>Periodo</label>
                 <select 
                     value={periodoContable} 
                     onChange={(e) => setPeriodoContable(e.target.value)} 
-                    style={{width: '100%', padding: '10px', background: '#e8f6f3', fontWeight: 'bold'}}
+                    style={{width: '100%', padding: '10px', background: '#e8f6f3'}}
                 >
-                    {listaPeriodos.map(periodo => (
-                        <option key={periodo} value={periodo}>
-                            {periodo} (Operativo)
-                        </option>
-                    ))}
+                    {listaPeriodos.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
             </div>
-            
-            <div style={{marginTop: '10px'}}>
-                <label style={{display: 'block'}}>Fecha del Documento</label>
-                {/* La fecha se limita al mes seleccionado arriba para evitar errores */}
-                <input 
-                    type="date" 
-                    value={fechaFactura} 
-                    min={`${periodoContable}-01`} 
-                    max={`${periodoContable}-31`}
-                    onChange={(e) => setFechaFactura(e.target.value)} 
-                    style={{width: '100%', padding: '8px', border: '1px solid #ccc'}} 
-                />
+
+            <div>
+                <label style={{display: 'block'}}>Fecha</label>
+                <input type="date" value={fechaFactura} onChange={(e) => setFechaFactura(e.target.value)} style={{width: '100%', padding: '8px', border: '1px solid #ccc'}} />
             </div>
         </div>
 
@@ -171,7 +159,7 @@ const nuevaVenta = {
         </div>
 
         <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
-            <input placeholder="NRC Cliente" value={nrcCliente} onChange={(e) => setNrcCliente(e.target.value)} onBlur={buscarCliente} style={{padding:'10px', width:'30%'}} />
+            <input placeholder="NRC Cliente (Ej: 123456-7)" value={nrcCliente} onChange={(e) => setNrcCliente(e.target.value)} onBlur={buscarCliente} style={{padding:'10px', width:'30%'}} />
             <input placeholder="Nombre Cliente" value={nombreCliente} onChange={(e)=>setNombreCliente(e.target.value)} style={{padding:'10px', flex: 1}} />
         </div>
 

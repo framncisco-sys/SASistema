@@ -97,34 +97,33 @@ const FormularioCompras = ({ clienteInfo, volverAlInicio }) => {
   };
 
   // --- GUARDAR COMPRA ---
-  const guardarCompra = async (terminar) => {
-    if (!montoGravado || !nrcProveedor || !fechaFactura) {
-        alert("Faltan datos obligatorios (Monto, NRC o Fecha)");
+const guardarCompra = async (terminar) => {
+    // 1. Validar que el usuario escribió algo
+    if (!montoGravado || !nrcProveedor || !nombreProveedor) {
+        alert("⚠️ Faltan datos: Revisa el Monto, NRC Proveedor o Nombre Proveedor");
         return;
     }
 
+    // 2. Preparar el paquete de datos (Usamos .nrc porque tu API no mostró ID)
     const nuevaCompra = {
-        cliente: clienteInfo.id || clienteInfo.nrc, // El backend pide "cliente" (tu empresa logueada)
+        cliente: clienteInfo.nrc,          // <--- CLAVE: Usamos el NRC de la empresa seleccionada
+        nrc_proveedor: nrcProveedor,       // Requerido por backend
+        nombre_proveedor: nombreProveedor, // Requerido por backend
         fecha_emision: fechaFactura,
         periodo_aplicado: periodoContable,
         numero_documento: numeroDocumento,
-        
-        // CORRECCIÓN: Volvemos a los nombres que pide el error
-        nrc_proveedor: nrcProveedor,       // El error pedía "nrc_proveedor"
-        nombre_proveedor: nombreProveedor, // El error pedía "nombre_proveedor"
-        
         total_gravado: parseFloat(montoGravado),
         total_iva: parseFloat(montoIva),
         total: parseFloat(montoTotal),
-        tipo_compra: tipoDocumento,
+        tipo_compra: tipoDocumento, // Puede ser "03", "CCF", etc. (según acepte tu backend)
         
+        // Opcionales
         clasificacion_1: clasif1,
         clasificacion_2: clasif2,
         clasificacion_3: clasif3
     };
-    // --- AGREGA ESTA LÍNEA AQUÍ: ---
-    console.log("📤 ENVIANDO COMPRA:", nuevaCompra); 
-    // -------------------------------
+
+    console.log("📤 ENVIANDO COMPRA (Revisar en Consola):", nuevaCompra);
 
     try {
         const respuesta = await fetch('https://backend-production-8f98.up.railway.app/api/compras/crear/', {
@@ -134,20 +133,20 @@ const FormularioCompras = ({ clienteInfo, volverAlInicio }) => {
         });
 
         if (respuesta.ok) {
-            alert("✅ Compra Guardada");
-            // Limpiar formulario
+            alert("✅ Compra Guardada con Éxito");
+            // Limpiar todo
             setMontoGravado(""); setMontoIva(""); setMontoTotal("");
             setNumeroDocumento(""); setNrcProveedor(""); setNombreProveedor("");
-            
-            if (terminar) {
-                volverAlInicio();
-            }
+            if (terminar) volverAlInicio();
         } else {
-            alert("❌ Error al guardar (Revisa la consola)");
+            // Si falla, mostramos el error técnico en una alerta para que lo veas
+            const errorData = await respuesta.json();
+            console.error("❌ Error del servidor:", errorData);
+            alert(`Error al guardar: ${JSON.stringify(errorData)}`);
         }
     } catch (error) {
-        console.error(error);
-        alert("Error de conexión");
+        console.error("Error de red:", error);
+        alert("Error de conexión con el servidor");
     }
   };
 
